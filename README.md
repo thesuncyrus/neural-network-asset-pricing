@@ -3,7 +3,7 @@
 **Review guide:** [Data and execution](DATA_SETUP.md) · [Archived vs computed results and fixes](RESULTS_PROVENANCE.md) · [Workflow map](docs/WORKFLOW.md).
 
 
-MGMT 47500: Machine Learning for Business, Purdue University
+Purdue University
 January–March 2026 · Chau Nguyen
 
 ## Project
@@ -12,11 +12,15 @@ January–March 2026 · Chau Nguyen
 - Assessed it against Ridge, PCA + Ridge, and MLP baselines through expanding-window out-of-sample backtests.
 - Interpreted latent factors via characteristic loadings and evaluated long-short decile portfolio returns.
 
+## Historical and corrected workflows
+
+`notebooks/historical_supervised_autoencoder.ipynb` preserves the recovered architecture, preprocessing order, original losses, splits and interpretation retraining. The modular `analysis.py` workflow is explicitly a corrected implementation: it moves imputation before target filtering, stabilizes ranking loss, weights validation batches, guards undefined metrics and reuses the fitted encoder. These can change results and are not historical replay. The full historical replay completed on 2026-11-16 using the private 252-file panel. Saved original tables remain in `results/`; newly computed annual metrics are separately labeled in `results/replay-2026-11-16/`. SAE mean Rank IC is 0.080023 in this run versus the saved 0.080381.
+
 ## Data and methods
 
 The analysis uses monthly U.S. equity observations from 2001–2021. The notebook records 1,520,078 initial rows and 1,027,681 rows after excluding missing excess-return targets. Model inputs are the 94 `characteristic_*` columns; the macroeconomic and industry columns are not used as model inputs.
 
-The current pipeline fills missing characteristics with same-month cross-sectional medians before filtering unavailable targets, then zero if an entire monthly feature is missing. Each scaler is fit only on the training partition. For test year t, models train through t−2; neural-network early stopping uses t−1. Tests span 2011–2021 (132 months).
+The separately corrected pipeline fills missing characteristics with same-month cross-sectional medians before filtering unavailable targets, then zero if an entire monthly feature is missing. Each scaler is fit only on the training partition. For test year t, models train through t−2; neural-network early stopping uses t−1. Tests span 2011–2021 (132 months).
 
 The supervised autoencoder maps 94 inputs through a 64-unit hidden layer into eight latent factors. It has a return-prediction head and a reconstruction decoder. Its training objective weights return MSE by 0.5, within-month pairwise ranking loss by 0.5, and reconstruction MSE by 0.05. Early stopping maximizes validation Rank IC. Ridge, PCA + Ridge (eight components), and MLP provide the comparisons.
 
@@ -24,11 +28,11 @@ The supervised autoencoder maps 94 inputs through a 64-unit hidden layer into ei
 
 ## Decile portfolio evaluation
 
-Each month, take the equal-weight mean realized return of securities at or above the 90th prediction percentile and subtract the corresponding mean at or below the 10th percentile. Ties at either boundary are included. The current runnable notebook and `portfolio.py` use top/bottom 10%. The untouched historical code archive also contains earlier quintile experiments; those are not the source of the decile table.
+Each month, take the equal-weight mean realized return of securities at or above the 90th prediction percentile and subtract the corresponding mean at or below the 10th percentile. Ties at either boundary are included. The current runnable notebook and `portfolio.py` use top/bottom 10%. The cleaned historical notebook also contains earlier quintile experiments; those are not the source of the decile table.
 
 The portfolio table covers all 132 test months. Sharpe ratios in this table are monthly (mean monthly long-short return divided by its sample standard deviation), not annualized. Cumulative return is the product of one plus each monthly long-short return, minus one. Returns are gross of trading costs and borrowing costs.
 
-The SAE has the strongest average Rank IC in the model comparison. Ridge has the strongest long-short decile return and monthly Sharpe ratio in the portfolio comparison. All four mean R² values are negative against the stated test-year-mean benchmark.
+In the saved original results, the SAE has the strongest average Rank IC in the model comparison. Ridge has the strongest long-short decile return and monthly Sharpe ratio in the portfolio comparison. All four mean R² values are negative against the stated test-year-mean benchmark.
 
 ## Factor interpretation
 
@@ -36,17 +40,21 @@ Characteristic loadings are approximated by multiplying the encoder's two linear
 
 ## Files and run instructions
 
-- `MGMT475_Project.ipynb`: executable review notebook calling the tested modules. `notebooks/Historical_Decile_Analysis.ipynb` separately retains saved aggregate outputs.
+- `supervised_autoencoder_analysis.ipynb`: executable review notebook calling the tested modules. `results/` separately retains saved aggregate outputs.
 - `data.py`: monthly Parquet loader with sample coverage and duplicate-key checks.
 - `analysis.py`: expanding-window runner, artifacts and metadata; `models.py`: importable PyTorch models, baselines, losses and metrics; `predict.py`: checkpoint inference.
 - `portfolio.py`: monthly top/bottom-decile construction.
 - `plot.py`: creates the website figures from the included aggregate tables.
 - `results/`: aggregate tables from the supplied notebook's saved outputs.
-- `figures/`: SVG figures included in the downloadable package.
+- `figures/`: SVG figures generated from saved aggregate results.
 
 Install dependencies with `python -m pip install -r requirements.txt`.
 
-Run the complete analysis with:
+Replay the historical notebook with:
+
+    python run_historical.py --data-dir /path/to/monthly-parquet --output-dir artifacts/historical
+
+Run the separately corrected analysis with:
 
     python analysis.py --data-dir /path/to/monthly-parquet --output-dir artifacts
 
