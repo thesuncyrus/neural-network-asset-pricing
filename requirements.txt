@@ -1,8 +1,9 @@
-numpy
-pandas
-pyarrow
-scikit-learn
-scipy
-torch
-matplotlib
-jupyter
+numpy==2.3.5
+pandas==2.2.3
+scipy==1.17.0
+scikit-learn==1.8.0
+matplotlib==3.10.8
+pyarrow==26.0.1
+torch==2.5.1
+joblib==1.5.3
+pytest==9.2.0

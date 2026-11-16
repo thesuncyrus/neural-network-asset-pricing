@@ -1,5 +1,8 @@
 # Neural Network Modeling
 
+**Review guide:** [Data and execution](DATA_SETUP.md) · [Archived vs computed results and fixes](RESULTS_PROVENANCE.md) · [Workflow map](docs/WORKFLOW.md).
+
+
 MGMT 47500: Machine Learning for Business, Purdue University
 January–March 2026 · Chau Nguyen
 
@@ -13,7 +16,7 @@ January–March 2026 · Chau Nguyen
 
 The analysis uses monthly U.S. equity observations from 2001–2021. The notebook records 1,520,078 initial rows and 1,027,681 rows after excluding missing excess-return targets. Model inputs are the 94 `characteristic_*` columns; the macroeconomic and industry columns are not used as model inputs.
 
-Missing characteristics are filled with their same-month cross-sectional median, then zero if a whole month's feature is missing. Each scaler is fit only on the training partition. For test year t, models train through t−2; neural-network early stopping uses t−1. Tests span 2011–2021 (132 months).
+The current pipeline fills missing characteristics with same-month cross-sectional medians before filtering unavailable targets, then zero if an entire monthly feature is missing. Each scaler is fit only on the training partition. For test year t, models train through t−2; neural-network early stopping uses t−1. Tests span 2011–2021 (132 months).
 
 The supervised autoencoder maps 94 inputs through a 64-unit hidden layer into eight latent factors. It has a return-prediction head and a reconstruction decoder. Its training objective weights return MSE by 0.5, within-month pairwise ranking loss by 0.5, and reconstruction MSE by 0.05. Early stopping maximizes validation Rank IC. Ridge, PCA + Ridge (eight components), and MLP provide the comparisons.
 
@@ -21,7 +24,7 @@ The supervised autoencoder maps 94 inputs through a 64-unit hidden layer into ei
 
 ## Decile portfolio evaluation
 
-Each month, take the equal-weight mean realized return of securities at or above the 90th prediction percentile and subtract the corresponding mean at or below the 10th percentile. Ties at either boundary are included. Both the notebook and `portfolio.py` use top/bottom 10% throughout.
+Each month, take the equal-weight mean realized return of securities at or above the 90th prediction percentile and subtract the corresponding mean at or below the 10th percentile. Ties at either boundary are included. The current runnable notebook and `portfolio.py` use top/bottom 10%. The untouched historical code archive also contains earlier quintile experiments; those are not the source of the decile table.
 
 The portfolio table covers all 132 test months. Sharpe ratios in this table are monthly (mean monthly long-short return divided by its sample standard deviation), not annualized. Cumulative return is the product of one plus each monthly long-short return, minus one. Returns are gross of trading costs and borrowing costs.
 
@@ -33,9 +36,9 @@ Characteristic loadings are approximated by multiplying the encoder's two linear
 
 ## Files and run instructions
 
-- `MGMT475_Project.ipynb`: notebook with model comparison, decile portfolio results, and factor interpretation.
+- `MGMT475_Project.ipynb`: executable review notebook calling the tested modules. `notebooks/Historical_Decile_Analysis.ipynb` separately retains saved aggregate outputs.
 - `data.py`: monthly Parquet loader with sample coverage and duplicate-key checks.
-- `analysis.py`: preprocessing, descriptive summaries, PyTorch models, baselines, expanding-window evaluation, portfolio returns, and factor interpretation.
+- `analysis.py`: expanding-window runner, artifacts and metadata; `models.py`: importable PyTorch models, baselines, losses and metrics; `predict.py`: checkpoint inference.
 - `portfolio.py`: monthly top/bottom-decile construction.
 - `plot.py`: creates the website figures from the included aggregate tables.
 - `results/`: aggregate tables from the supplied notebook's saved outputs.
@@ -59,3 +62,7 @@ Source material: `MGMT475_Project_final.ipynb`, the course dataset documentation
 ## Portfolio
 
 [Project overview and visualizations](https://chau-nguyen-research.gabledmango1.chatgpt.site/neural-network.html) · [Chau Nguyen on LinkedIn](https://www.linkedin.com/in/chaunguyen2811)
+
+## Validation
+
+See [executed checks and limits](docs/VALIDATION.md) and [result provenance](RESULTS_PROVENANCE.md).
