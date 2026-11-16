@@ -1,0 +1,5 @@
+model,avg_monthly_long_short,std_long_short,sharpe_monthly,cum_long_short_end,n_months
+Ridge,0.011057,0.031893,0.34669,3.003088,132
+MLP,0.009372,0.032059,0.292342,2.208937,132
+SAE,0.009036,0.074394,0.121458,1.202401,132
+PCA+Ridge,0.007731,0.042146,0.183439,1.46424,132
