@@ -1,4 +1,4 @@
-"""Synthetic fixtures verify mechanics, never historical performance claims."""
+"""Synthetic fixtures verify the modeling and evaluation pipeline."""
 import numpy as np
 import pandas as pd
 import pytest

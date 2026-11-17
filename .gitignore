@@ -5,13 +5,15 @@ __pycache__/
 .RData
 .env
 .env.*
-data/
+data/*
+!data/README.md
 outputs/
 artifacts/
 *.rds
 
 # Local data, models and generated evaluation artifacts
-data/
+data/*
+!data/README.md
 outputs/
 artifacts/
 runs/

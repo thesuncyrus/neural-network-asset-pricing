@@ -1,76 +1,42 @@
-# Neural Network Modeling
+# Learning Latent Return Factors with a Supervised Autoencoder
 
-**Review guide:** [Data and execution](DATA_SETUP.md) · [Archived vs computed results and fixes](RESULTS_PROVENANCE.md) · [Workflow map](docs/WORKFLOW.md).
+Chau Nguyen · Purdue University · January–March 2026
 
+## Research question
+Can a compact representation of firm characteristics help predict and rank equity returns, and how does it compare with linear and neural baselines?
 
-Purdue University
-January–March 2026 · Chau Nguyen
+## Data and model
+The monthly panel spans 2001–2021 and uses 94 firm characteristics. It contains 1,520,078 initial observations and 1,027,681 after excluding missing excess-return targets. Macroeconomic and industry columns are not model inputs. The merged CRSP/Compustat-derived panel is excluded from this public repository; see DATA_SETUP.md for the required schema.
 
-## Project
+The encoder maps 94 → 64 → 8 units, with ReLU and dropout 0.2. A linear head predicts excess returns; an 8 → 64 → 94 decoder reconstructs features. The objective combines return MSE, within-month pairwise ranking loss and reconstruction MSE with weights 0.5, 0.5 and 0.05. Comparisons use Ridge (alpha 5), PCA (8 components) plus Ridge, and an MLP (94 → 64 → 64 → 1).
 
-- Trained a PyTorch supervised autoencoder that maps firm characteristics to latent return-predicting factors.
-- Assessed it against Ridge, PCA + Ridge, and MLP baselines through expanding-window out-of-sample backtests.
-- Interpreted latent factors via characteristic loadings and evaluated long-short decile portfolio returns.
+For test year t, training ends at t−2 and validation uses t−1. Tests cover 2011–2021, or 132 months. SAE early stopping maximizes validation Rank IC; MLP selection uses validation MSE. The notebook filters unavailable targets before monthly median/zero imputation; its scaler is trained only on the training partition. The modular workflow imputes before target filtering, uses stable ranking loss and weighted validation batches, and reuses the evaluated encoder for interpretation. These execution paths can produce different numerical results.
 
-## Historical and corrected workflows
+## Results
+The tables and figures below are aggregate results from the project notebook.
 
-`notebooks/historical_supervised_autoencoder.ipynb` preserves the recovered architecture, preprocessing order, original losses, splits and interpretation retraining. The modular `analysis.py` workflow is explicitly a corrected implementation: it moves imputation before target filtering, stabilizes ranking loss, weights validation batches, guards undefined metrics and reuses the fitted encoder. These can change results and are not historical replay. The full historical replay completed on 2026-11-16 using the private 252-file panel. Saved original tables remain in `results/`; newly computed annual metrics are separately labeled in `results/replay-2026-11-16/`. SAE mean Rank IC is 0.080023 in this run versus the saved 0.080381.
+| Model | Mean Rank IC | Mean R² |
+|---|---:|---:|
+| Supervised autoencoder | 0.080381 | -0.036972 |
+| Ridge | 0.009429 | -0.010766 |
+| MLP | 0.004059 | -0.012341 |
+| PCA + Ridge | 0.003583 | -0.008230 |
 
-## Data and methods
+![Ranking comparison](figures/neural-network-ranking.svg)
+![Decile portfolios](figures/neural-network-deciles.svg)
 
-The analysis uses monthly U.S. equity observations from 2001–2021. The notebook records 1,520,078 initial rows and 1,027,681 rows after excluding missing excess-return targets. Model inputs are the 94 `characteristic_*` columns; the macroeconomic and industry columns are not used as model inputs.
+SAE leads Rank IC; Ridge leads the long–short decile return and monthly Sharpe comparison. Each month, portfolios buy the top 10% and sell the bottom 10% by predicted return, including threshold ties. Monthly Sharpe is not annualized; returns are gross of costs. Earlier notebook experiments also examine 80/20 quintiles. R² uses the test-year mean as its denominator benchmark. Better ranking does not imply smaller prediction errors or stronger trading performance.
 
-The separately corrected pipeline fills missing characteristics with same-month cross-sectional medians before filtering unavailable targets, then zero if an entire monthly feature is missing. Each scaler is fit only on the training partition. For test year t, models train through t−2; neural-network early stopping uses t−1. Tests span 2011–2021 (132 months).
+Factor loadings approximate the product of the encoder's linear weight matrices. They describe model weights, not exact marginal effects through ReLU activations.
 
-The supervised autoencoder maps 94 inputs through a 64-unit hidden layer into eight latent factors. It has a return-prediction head and a reconstruction decoder. Its training objective weights return MSE by 0.5, within-month pairwise ranking loss by 0.5, and reconstruction MSE by 0.05. Early stopping maximizes validation Rank IC. Ridge, PCA + Ridge (eight components), and MLP provide the comparisons.
+## Run
+```sh
+python -m pip install -r requirements.txt
+python run_notebook.py --data-dir /path/to/GatingModelData2 --output-dir artifacts/notebook
+python analysis.py --data-dir /path/to/GatingModelData2 --output-dir artifacts/modular
+python -m pytest -q
+python plot.py --output-dir figures
+```
+The first command after installation executes `notebooks/supervised_autoencoder.ipynb`; the second runs the modular implementation. `supervised_autoencoder_analysis.ipynb` provides an interactive entry point for the modules. Results go to the requested output directory; model checkpoints and individual predictions are excluded from Git. The project notebook acknowledges coding assistance from ChatGPT.
 
-`oos_r2` uses the test-year return mean as its denominator benchmark. The table averages each model's annual metrics across eleven test years. Rank IC is the mean monthly Spearman correlation. Higher ranking performance does not imply smaller return-prediction error or better portfolio performance.
-
-## Decile portfolio evaluation
-
-Each month, take the equal-weight mean realized return of securities at or above the 90th prediction percentile and subtract the corresponding mean at or below the 10th percentile. Ties at either boundary are included. The current runnable notebook and `portfolio.py` use top/bottom 10%. The cleaned historical notebook also contains earlier quintile experiments; those are not the source of the decile table.
-
-The portfolio table covers all 132 test months. Sharpe ratios in this table are monthly (mean monthly long-short return divided by its sample standard deviation), not annualized. Cumulative return is the product of one plus each monthly long-short return, minus one. Returns are gross of trading costs and borrowing costs.
-
-In the saved original results, the SAE has the strongest average Rank IC in the model comparison. Ridge has the strongest long-short decile return and monthly Sharpe ratio in the portfolio comparison. All four mean R² values are negative against the stated test-year-mean benchmark.
-
-## Factor interpretation
-
-Characteristic loadings are approximated by multiplying the encoder's two linear weight matrices. Because the encoder contains ReLU activations, this is a weight-based interpretation, not an exact marginal effect. `results/factor-loadings.csv` contains the twenty entries displayed in the notebook: the ten highest absolute weights for each of factors 0 and 1. Running the analysis exports all eight factors. The notebook also includes the 2021 monthly cross-sectional factor-premium estimates and their plots.
-
-## Files and run instructions
-
-- `supervised_autoencoder_analysis.ipynb`: executable review notebook calling the tested modules. `results/` separately retains saved aggregate outputs.
-- `data.py`: monthly Parquet loader with sample coverage and duplicate-key checks.
-- `analysis.py`: expanding-window runner, artifacts and metadata; `models.py`: importable PyTorch models, baselines, losses and metrics; `predict.py`: checkpoint inference.
-- `portfolio.py`: monthly top/bottom-decile construction.
-- `plot.py`: creates the website figures from the included aggregate tables.
-- `results/`: aggregate tables from the supplied notebook's saved outputs.
-- `figures/`: SVG figures generated from saved aggregate results.
-
-Install dependencies with `python -m pip install -r requirements.txt`.
-
-Replay the historical notebook with:
-
-    python run_historical.py --data-dir /path/to/monthly-parquet --output-dir artifacts/historical
-
-Run the separately corrected analysis with:
-
-    python analysis.py --data-dir /path/to/monthly-parquet --output-dir artifacts
-
-The input directory must contain the 2001–2021 monthly Parquet files named `YYYYMM_0.parquet`; subdirectories are supported. Open the notebook from this folder and set its data path to use the notebook workflow. PyTorch can use CUDA when available; CPU execution is also supported.
-
-Create the website charts without training models:
-
-    python plot.py --output-dir figures
-
-Source material: `MGMT475_Project_final.ipynb`, the course dataset documentation, and the course project guidelines. The dataset documentation attributes the underlying sources to CRSP, Compustat/WRDS, and the asset-pricing literature. Raw equity records are not included in the package.
-
-
-## Portfolio
-
-[Project overview and visualizations](https://chau-nguyen-research.gabledmango1.chatgpt.site/neural-network.html) · [Chau Nguyen on LinkedIn](https://www.linkedin.com/in/chaunguyen2811)
-
-## Validation
-
-See [executed checks and limits](docs/VALIDATION.md) and [result provenance](RESULTS_PROVENANCE.md).
+[Portfolio case study](https://chau-nguyen-research.gabledmango1.chatgpt.site/neural-network.html)
