@@ -2,7 +2,7 @@
 Importing this module does not read data or start training.
 """
 import random
-from dataclasses import dataclass
+from config import TrainConfig
 from typing import List
 import numpy as np
 import pandas as pd
@@ -102,21 +102,6 @@ class SupervisedAutoencoder(nn.Module):
         x_hat = self.decoder(z)
         return y_hat, x_hat, z
 
-@dataclass
-class TrainConfig:
-    hidden_dim: int = 64
-    latent_dim: int = 8
-    dropout: float = 0.2
-    lr: float = 1e-3
-    weight_decay: float = 5e-4
-    epochs: int = 20
-    batch_size: int = 4096
-
-    alpha_mse: float = 0.5
-    beta_rank: float = 0.5
-    lambda_rec: float = 0.05
-
-    patience: int = 3
 
 def pairwise_rank_loss(y_true, y_pred, group_id, n_pairs_per_group=256):
     """

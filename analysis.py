@@ -12,13 +12,15 @@ import numpy as np
 import pandas as pd
 import torch
 from sklearn.metrics import mean_squared_error
+from config import EXPERIMENT, BASELINES
 from data import load_panel, panel_paths, prepare_panel, temporal_split
 from portfolio import long_short_decile_returns, portfolio_summary
 from models import (TrainConfig, seed_everything, train_one_model, predict_df,
                     fit_predict_ridge, fit_predict_pca_ridge, train_predict_mlp,
                     oos_r2, rank_ic_by_month, encoder_effective_weights, monthly_factor_premia)
 
-def run_backtest(panel, out, cfg=None, first_year=2011, last_year=2021, seed=42, mlp_epochs=6):
+def run_backtest(panel, out, cfg=None, first_year=EXPERIMENT["first_year"], last_year=EXPERIMENT["last_year"],
+                 seed=EXPERIMENT["seed"], mlp_epochs=BASELINES["mlp_epochs"]):
     cfg = cfg or TrainConfig()
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     seed_everything(seed)
@@ -37,10 +39,10 @@ def run_backtest(panel, out, cfg=None, first_year=2011, last_year=2021, seed=42,
         pred_sae, z = predict_df(sae, scaler, te, features)
         frame = te[["permno", "month", "year", "ret_excess"]].copy()
         frame["pred_sae"] = pred_sae
-        frame["pred_ridge"] = fit_predict_ridge(tr, te, features, alpha=5.)
-        frame["pred_pca_ridge"] = fit_predict_pca_ridge(tr, te, features, n_components=cfg.latent_dim, alpha=5.)
+        frame["pred_ridge"] = fit_predict_ridge(tr, te, features, alpha=BASELINES["ridge_alpha"])
+        frame["pred_pca_ridge"] = fit_predict_pca_ridge(tr, te, features, n_components=cfg.latent_dim, alpha=BASELINES["ridge_alpha"])
         frame["pred_mlp"] = train_predict_mlp(tr, va, te, features, epochs=mlp_epochs,
-                                             hidden_dim=64, batch_size=cfg.batch_size)
+                                             hidden_dim=BASELINES["mlp_hidden_dim"], batch_size=cfg.batch_size)
         for name, col in [("SAE", "pred_sae"), ("Ridge", "pred_ridge"), ("PCA+Ridge", "pred_pca_ridge"), ("MLP", "pred_mlp")]:
             if not np.isfinite(frame[col]).all():
                 raise ValueError(f"Non-finite {name} predictions in {year}.")
@@ -87,7 +89,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", required=True)
     parser.add_argument("--output-dir", default="artifacts")
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=EXPERIMENT["seed"])
     args = parser.parse_args()
     panel = load_panel(args.data_dir)
     result = run_backtest(panel, args.output_dir, seed=args.seed)

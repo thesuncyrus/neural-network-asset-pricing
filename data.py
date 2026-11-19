@@ -1,11 +1,12 @@
 """Monthly panel validation and target-independent feature preparation."""
 from pathlib import Path
 import re
+from config import PANEL
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 
-def validate_panel(data, start="2001-01", end="2021-12", n_features=94):
+def validate_panel(data, start=PANEL["start"], end=PANEL["end"], n_features=PANEL["n_features"]):
     required = {"permno", "month", "ret_excess"}
     if not required.issubset(data.columns):
         raise ValueError(f"Missing columns: {sorted(required - set(data.columns))}")
@@ -31,7 +32,7 @@ def validate_panel(data, start="2001-01", end="2021-12", n_features=94):
     data["year"] = data.month.dt.year
     return data.sort_values(["month", "permno"]).reset_index(drop=True)
 
-def panel_paths(directory, start="2001-01", end="2021-12"):
+def panel_paths(directory, start=PANEL["start"], end=PANEL["end"]):
     lo, hi = int(start.replace("-", "")), int(end.replace("-", ""))
     paths = []
     for p in sorted(Path(directory).rglob("*.parquet")):
@@ -44,7 +45,7 @@ def panel_paths(directory, start="2001-01", end="2021-12"):
         raise ValueError("Duplicate monthly files in nested directories.")
     return paths
 
-def load_panel(data_directory, start="2001-01", end="2021-12", n_features=94):
+def load_panel(data_directory, start=PANEL["start"], end=PANEL["end"], n_features=PANEL["n_features"]):
     frames = []
     for p in panel_paths(data_directory, start, end):
         frame = pq.ParquetFile(p).read().to_pandas()

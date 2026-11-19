@@ -1,9 +1,10 @@
 """Equal-weight monthly top/bottom deciles with explicit tie handling."""
+from config import PORTFOLIO
 import numpy as np
 import pandas as pd
 
 def long_short_decile_returns(df_in, pred_col="pred", ret_col="ret_excess",
-                             top_q=.9, bot_q=.1, min_n=30):
+                             top_q=PORTFOLIO["top_q"], bot_q=PORTFOLIO["bot_q"], min_n=PORTFOLIO["min_n"]):
     if not 0 < bot_q < top_q < 1 or min_n < 2:
         raise ValueError("Invalid portfolio quantiles or minimum sample size.")
     if df_in[["year", "month"]].isna().any().any():
